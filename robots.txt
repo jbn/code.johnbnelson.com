@@ -1,1 +1,1 @@
-Sitemap: https://jbn.github.io/code.johnbnelson.com/sitemap.xml
+Sitemap: https://code.johnbnelson.com/code.johnbnelson.com/sitemap.xml
