@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="twitter:card" content="summary" /><!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>x509 Certificate Fingerprinting In Golang | jbn codes</title>
+<meta name="generator" content="Jekyll v4.0.0" />
+<meta property="og:title" content="x509 Certificate Fingerprinting In Golang" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="A tutorial with comparisons to OpenSSL commands." />
+<meta property="og:description" content="A tutorial with comparisons to OpenSSL commands." />
+<link rel="canonical" href="https://code.johnbnelson.com/go/crypto/2020/08/12/certificate-fingerprinting-in-golang.html" />
+<meta property="og:url" content="https://code.johnbnelson.com/go/crypto/2020/08/12/certificate-fingerprinting-in-golang.html" />
+<meta property="og:site_name" content="jbn codes" />
+<meta property="og:image" content="https://code.johnbnelson.com/images/cert_viewer.png" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2020-08-12T00:00:00-05:00" />
+<script type="application/ld+json">
+{"description":"A tutorial with comparisons to OpenSSL commands.","@type":"BlogPosting","headline":"x509 Certificate Fingerprinting In Golang","dateModified":"2020-08-12T00:00:00-05:00","datePublished":"2020-08-12T00:00:00-05:00","image":"https://code.johnbnelson.com/images/cert_viewer.png","url":"https://code.johnbnelson.com/go/crypto/2020/08/12/certificate-fingerprinting-in-golang.html","mainEntityOfPage":{"@type":"WebPage","@id":"https://code.johnbnelson.com/go/crypto/2020/08/12/certificate-fingerprinting-in-golang.html"},"@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/css/style.css"><link type="application/atom+xml" rel="alternate" href="https://code.johnbnelson.com/feed.xml" title="jbn codes" /><link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico"><!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>x509 Certificate Fingerprinting In Golang | jbn codes</title>
+<meta name="generator" content="Jekyll v4.0.0" />
+<meta property="og:title" content="x509 Certificate Fingerprinting In Golang" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="A tutorial with comparisons to OpenSSL commands." />
+<meta property="og:description" content="A tutorial with comparisons to OpenSSL commands." />
+<link rel="canonical" href="https://code.johnbnelson.com/go/crypto/2020/08/12/certificate-fingerprinting-in-golang.html" />
+<meta property="og:url" content="https://code.johnbnelson.com/go/crypto/2020/08/12/certificate-fingerprinting-in-golang.html" />
+<meta property="og:site_name" content="jbn codes" />
+<meta property="og:image" content="https://code.johnbnelson.com/images/cert_viewer.png" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2020-08-12T00:00:00-05:00" />
+<script type="application/ld+json">
+{"description":"A tutorial with comparisons to OpenSSL commands.","@type":"BlogPosting","headline":"x509 Certificate Fingerprinting In Golang","dateModified":"2020-08-12T00:00:00-05:00","datePublished":"2020-08-12T00:00:00-05:00","image":"https://code.johnbnelson.com/images/cert_viewer.png","url":"https://code.johnbnelson.com/go/crypto/2020/08/12/certificate-fingerprinting-in-golang.html","mainEntityOfPage":{"@type":"WebPage","@id":"https://code.johnbnelson.com/go/crypto/2020/08/12/certificate-fingerprinting-in-golang.html"},"@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+<link href="https://unpkg.com/@primer/css/dist/primer.css" rel="stylesheet" />
+<link rel="stylesheet" href="//use.fontawesome.com/releases/v5.0.7/css/all.css"><link type="application/atom+xml" rel="alternate" href="https://code.johnbnelson.com/feed.xml" title="jbn codes" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.11.1/dist/katex.min.css" integrity="sha384-zB1R0rpPzHqg7Kpt0Aljp8JPLqbXI3bhnPWROx27a9N0Ll6ZP/+DiW/UqRcLbRjq" crossorigin="anonymous">
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML"> </script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.11.1/dist/katex.min.js" integrity="sha384-y23I5Q6l+B6vatafAwxRu/0oK/79VlbSz7Q9aiSZUvyWYIYsd+qj+o24G5ZU2zJz" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.11.1/dist/contrib/auto-render.min.js" integrity="sha384-kWPLUVMOks5AQFrykwIup5lo0m3iMkkHrD0uJ4H5cjeGihAutqP0yW0J6dpFiVkI" crossorigin="anonymous"></script>
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        renderMathInElement( document.body, {
+        delimiters: [
+            {left: "$$", right: "$$", display: true},
+            {left: "[%", right: "%]", display: true},
+            {left: "$", right: "$", display: false}
+        ]}
+        );
+    });
+    </script>
+
+
+<script>
+function wrap_img(fn) {
+    if (document.attachEvent ? document.readyState === "complete" : document.readyState !== "loading") {
+        var elements = document.querySelectorAll(".post img");
+        Array.prototype.forEach.call(elements, function(el, i) {
+            if (el.getAttribute("title") && (el.className != "emoji")) {
+                const caption = document.createElement('figcaption');
+                var node = document.createTextNode(el.getAttribute("title"));
+                caption.appendChild(node);
+                const wrapper = document.createElement('figure');
+                wrapper.className = 'image';
+                el.parentNode.insertBefore(wrapper, el);
+                el.parentNode.removeChild(el);
+                wrapper.appendChild(el);
+                wrapper.appendChild(caption);
+            }
+        });
+    } else { document.addEventListener('DOMContentLoaded', fn); }
+}
+window.onload = wrap_img;
+</script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function(){
+    // add link icon to anchor tags
+    var elem = document.querySelectorAll(".anchor-link")
+    elem.forEach(e => (e.innerHTML = '<i class="fas fa-link fa-xs"></i>'));
+    });
+</script>
+</head>
+<body><header class="site-header">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">jbn codes</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/about/">About Me</a><a class="page-link" href="/search/">Search</a><a class="page-link" href="/categories/">Tags</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">x509 Certificate Fingerprinting In Golang</h1><p class="page-description">A tutorial with comparisons to OpenSSL commands.</p><p class="post-meta post-meta-title"><time class="dt-published" datetime="2020-08-12T00:00:00-05:00" itemprop="datePublished">
+        Aug 12, 2020
+      </time>
+       • <span class="read-time" title="Estimated read time">
+    
+    
+      5 min read
+    
+</span></p>
+
+    
+      <p class="category-tags"><i class="fas fa-tags category-tags-icon"></i></i> 
+      
+        <a class="category-tags-link" href="/categories/#go">go</a>
+        &nbsp;
+      
+        <a class="category-tags-link" href="/categories/#crypto">crypto</a>
+        
+      
+      </p>
+    
+
+    
+      
+        <div class="pb-5 d-flex flex-wrap flex-justify-end">
+          <div class="px-2">
+
+    <a href="https://github.com/jbn/code.johnbnelson.com/tree/master/_notebooks/2020-08-12-certificate-fingerprinting-in-golang.ipynb" role="button" target="_blank">
+<img class="notebook-badge-image" src="/assets/badges/github.svg" alt="View On GitHub">
+    </a>
+</div>
+
+          <div class="px-2">
+    <a href="https://mybinder.org/v2/gh/jbn/code.johnbnelson.com/master?filepath=_notebooks%2F2020-08-12-certificate-fingerprinting-in-golang.ipynb" target="_blank">
+        <img class="notebook-badge-image" src="/assets/badges/binder.svg" alt="Open In Binder"/>
+    </a>
+</div>
+
+          <div class="px-2">
+    <a href="https://colab.research.google.com/github/jbn/code.johnbnelson.com/blob/master/_notebooks/2020-08-12-certificate-fingerprinting-in-golang.ipynb" target="_blank">
+        <img class="notebook-badge-image" src="/assets/badges/colab.svg" alt="Open In Colab"/>
+    </a>
+</div>
+        </div>
+      </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <ul class="section-nav">
+<li class="toc-entry toc-h2"><a href="#Gold-Values-from-OpenSSL-and-a-PEM-encoded-File">Gold Values from OpenSSL and a PEM-encoded File </a></li>
+<li class="toc-entry toc-h2"><a href="#Fingerprinting-without-x509-Parsing">Fingerprinting without x509 Parsing </a></li>
+<li class="toc-entry toc-h2"><a href="#Fingerprinting-with-x509-Parsing">Fingerprinting with x509 Parsing </a></li>
+<li class="toc-entry toc-h2"><a href="#Fingerprinting-from-a-Peer-Certificate">Fingerprinting from a Peer Certificate </a></li>
+<li class="toc-entry toc-h2"><a href="#Conclusion">Conclusion </a></li>
+</ul><!--
+#################################################
+### THIS FILE WAS AUTOGENERATED! DO NOT EDIT! ###
+#################################################
+# file to edit: _notebooks/2020-08-12-certificate-fingerprinting-in-golang.ipynb
+-->
+
+<div class="container" id="notebook-container">
+        
+    
+    
+<div class="cell border-box-sizing code_cell rendered">
+
+</div>
+    
+
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>This website serves content to your browser over an encrypted and authenticated tunnel. The <strong>S</strong> in <code>https</code> stands for secure via TLS (Transport Layer Security). To do so, it relies on a public key certificate associated with the domain name and issued by a certificate authority (CA) which acts as a trusted third party. I'm using github pages to host this page. Looking at the certificate in Brave's certificate viewer, you see github pages uses lets encrypt as the CA. (If you are looking at this tutorial after November 4th, 2020, you'll see different values.)</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><img src="/code.johnbnelson.com/images/copied_from_nb/images/cert_viewer.png" alt="View from Brave's Certificate Viewer"></p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Looking at the same viewer, you'll also notice that Brave shows two fingerprints: one for the (no longer secure) SHA-1 algorithm and the other for the SHA256, a 512 bit block hash in the SHA-2 family. If you aren't doing much work with public key cryptography, this may be the first time you noticed the fingerprint section. However, if you use computers in any sophisticated capacity, you've probably probably have seen hashes of public key artifacts in other contexts. In particular, you may have seen a message like this,</p>
+
+<pre><code>The authenticity of host '&lt;host&gt;' can't be established.
+ECDSA key fingerprint is SHA256:&lt;BASE64-encoded-SHA256-Fingerprint&gt;.
+Are you sure you want to continue connecting (yes/no)? yes
+Warning: Permanently added '&lt;host&gt;' (ECDSA) to the list of known hosts.</code></pre>
+<p>when connecting to a new SSH host using OpenSSH. This user experience is called TOFU: Trust on First Use. Since SSH has not seen this key before (or rather, it's fingerprint) it prompts you whether or not you would like to trust it. If you confirm with <code>y</code>, future sessions won't prompt you again, so long as the fingerprint of the key does not change.</p>
+<p>While <a href="https://smallstep.com/blog/use-ssh-certificates/">TOFU is a questionable practice</a> with respect to security (how often do you actually confirm the fingerprint with an administrator or in some database before confirmation?), this use of fingerprinting is common in applications using TLS. This notebook shows you how to use both OpenSSL and golang to extract equivalent fingerprints. It is fully self-contained — if you have a Golang kernel for Jupyter, you can run it.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="Gold-Values-from-OpenSSL-and-a-PEM-encoded-File">
+<a class="anchor" href="#Gold-Values-from-OpenSSL-and-a-PEM-encoded-File" aria-hidden="true"><span class="octicon octicon-link"></span></a>Gold Values from OpenSSL and a PEM-encoded File<a class="anchor-link" href="#Gold-Values-from-OpenSSL-and-a-PEM-encoded-File"> </a>
+</h2>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>First, we'll set up our imports. If you do any public key cryptography in golang, most of these will be familiar.</p>
+
+</div>
+</div>
+</div>
+    
+    
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="p">(</span>
+    <span class="s2">"crypto/md5"</span>
+    <span class="s2">"crypto/sha1"</span>
+    <span class="s2">"crypto/sha256"</span>
+    <span class="s2">"crypto/tls"</span>
+    <span class="s2">"crypto/x509"</span>
+    <span class="s2">"encoding/pem"</span>
+    <span class="s2">"fmt"</span>
+    <span class="s2">"hash"</span>
+    <span class="s2">"os"</span>
+    <span class="s2">"os/exec"</span>
+    <span class="s2">"io/ioutil"</span>
+    <span class="s2">"strings"</span>
+<span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+    
+
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Next, we'll write a fixed, minimal ASCII/PEM-encoded certificate so that this tutorial won't change over time.</p>
+
+</div>
+</div>
+</div>
+    
+    
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">const</span> <span class="n">knownCert</span> <span class="o">=</span> <span class="err">`</span><span class="o">-----</span><span class="n">BEGIN</span> <span class="n">CERTIFICATE</span><span class="o">-----</span>
+<span class="n">MIIBUzCB</span><span class="o">+</span><span class="n">qADAgECAhR7l0x6Cgyt0hWRxQXKDB4NIgKM2TAKBggqhkjOPQQDAjAN</span>
+<span class="n">MQswCQYDVQQGEwJVSzAeFw0yMDA4MTIyMzIwMTBaFw0zMDA4MTAyMzIwMTBaMA0x</span>
+<span class="n">CzAJBgNVBAYTAlVLMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEJBJm0831oqwg</span>
+<span class="mi">6</span><span class="n">daZcuB</span><span class="o">+</span><span class="n">vgeRFinuuT6hU2NxboDbfeyGUjv91lBWnCU1YL27d7PhZVabyNtQm0OZ</span>
+<span class="n">bmveMV9v7aM4MDYwDgYDVR0PAQH</span><span class="o">/</span><span class="n">BAQDAgKEMBMGA1UdJQQMMAoGCCsGAQUFBwMB</span>
+<span class="n">MA8GA1UdEwEB</span><span class="o">/</span><span class="n">wQFMAMBAf8wCgYIKoZIzj0EAwIDSAAwRQIgWawEXk36iBObsLyr</span>
+<span class="n">ZPzIlIN91</span><span class="o">/</span><span class="mi">85</span><span class="n">aix5kYRxAPDIkOUCIQDxsqXNpb6hFTiwLnj2stl2hwcxtcTB8bnS</span>
+<span class="n">gniTVdxCTw</span><span class="o">==</span>
+<span class="o">-----</span><span class="n">END</span> <span class="n">CERTIFICATE</span><span class="o">-----</span>
+<span class="err">`</span>
+
+<span class="n">const</span> <span class="n">certFile</span> <span class="o">=</span> <span class="s2">"test.crt"</span>
+<span class="n">err</span> <span class="o">:=</span> <span class="n">ioutil</span><span class="o">.</span><span class="n">WriteFile</span><span class="p">(</span><span class="n">certFile</span><span class="p">,</span> <span class="p">[]</span><span class="n">byte</span><span class="p">(</span><span class="n">knownCert</span><span class="p">),</span> <span class="n">os</span><span class="o">.</span><span class="n">ModePerm</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">err</span> <span class="o">!=</span> <span class="n">nil</span> <span class="p">{</span>
+    <span class="n">panic</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+    
+
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>With a certificate in hand (on disk), we can use <code>openssl</code> to compute the fingerprints. <a href="https://www.openssl.org/">OpenSSL</a> is robust and enjoys the battle-tested upside of <a href="https://en.wikipedia.org/wiki/Linus%27s_law">Linus's Law</a>, so it's a useful way to compute the expected outputs using MD5, SHA1, SHA256.</p>
+
+</div>
+</div>
+</div>
+    
+    
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="o">//</span> <span class="n">Extract</span> <span class="n">the</span> <span class="n">fingerprint</span> <span class="kn">from</span> <span class="nn">command</span> <span class="n">execution</span> <span class="ow">in</span> <span class="n">a</span> <span class="n">generic</span> <span class="n">way</span>
+<span class="n">func</span> <span class="n">extractFingerprint</span><span class="p">(</span><span class="n">cmd</span> <span class="o">*</span><span class="n">exec</span><span class="o">.</span><span class="n">Cmd</span><span class="p">)</span> <span class="n">string</span> <span class="p">{</span>
+    <span class="n">b</span><span class="p">,</span> <span class="n">err</span> <span class="o">:=</span> <span class="n">cmd</span><span class="o">.</span><span class="n">Output</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">err</span> <span class="o">!=</span> <span class="n">nil</span> <span class="p">{</span>
+        <span class="n">panic</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">strings</span><span class="o">.</span><span class="n">Split</span><span class="p">(</span><span class="n">strings</span><span class="o">.</span><span class="n">TrimSpace</span><span class="p">(</span><span class="n">string</span><span class="p">(</span><span class="n">b</span><span class="p">)),</span> <span class="s2">"="</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+<span class="p">}</span>
+
+<span class="n">knownMD5</span> <span class="o">:=</span> <span class="n">extractFingerprint</span><span class="p">(</span><span class="n">exec</span><span class="o">.</span><span class="n">Command</span><span class="p">(</span><span class="s2">"openssl"</span><span class="p">,</span> <span class="s2">"x509"</span><span class="p">,</span> <span class="s2">"-noout"</span><span class="p">,</span> <span class="s2">"-fingerprint"</span><span class="p">,</span> <span class="s2">"-md5"</span><span class="p">,</span> <span class="s2">"-in"</span><span class="p">,</span> <span class="n">certFile</span><span class="p">))</span>
+<span class="n">knownSHA1</span> <span class="o">:=</span> <span class="n">extractFingerprint</span><span class="p">(</span><span class="n">exec</span><span class="o">.</span><span class="n">Command</span><span class="p">(</span><span class="s2">"openssl"</span><span class="p">,</span> <span class="s2">"x509"</span><span class="p">,</span> <span class="s2">"-noout"</span><span class="p">,</span> <span class="s2">"-fingerprint"</span><span class="p">,</span> <span class="s2">"-sha1"</span><span class="p">,</span> <span class="s2">"-in"</span><span class="p">,</span> <span class="n">certFile</span><span class="p">))</span>
+<span class="n">knownSHA256</span> <span class="o">:=</span> <span class="n">extractFingerprint</span><span class="p">(</span><span class="n">exec</span><span class="o">.</span><span class="n">Command</span><span class="p">(</span><span class="s2">"openssl"</span><span class="p">,</span> <span class="s2">"x509"</span><span class="p">,</span> <span class="s2">"-noout"</span><span class="p">,</span> <span class="s2">"-fingerprint"</span><span class="p">,</span> <span class="s2">"-sha256"</span><span class="p">,</span> <span class="s2">"-in"</span><span class="p">,</span> <span class="n">certFile</span><span class="p">))</span>
+<span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">:=</span> <span class="n">fmt</span><span class="o">.</span><span class="n">Printf</span><span class="p">(</span><span class="s2">"MD5    = </span><span class="si">%s</span><span class="se">\n</span><span class="s2">SHA1   = </span><span class="si">%s</span><span class="se">\n</span><span class="s2">SHA256 = </span><span class="si">%s</span><span class="se">\n</span><span class="s2">"</span><span class="p">,</span> <span class="n">knownMD5</span><span class="p">,</span> <span class="n">knownSHA1</span><span class="p">,</span> <span class="n">knownSHA256</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="output_area">
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>MD5    = 04:56:1B:6C:AF:DE:39:72:18:74:AE:E0:F9:5B:2D:DE
+SHA1   = 3A:1F:3B:C0:B3:A4:5B:FE:D6:D7:87:5E:C7:1D:E4:C4:7B:EA:B0:C0
+SHA256 = D7:AD:9F:D5:C4:F4:BD:23:7B:DE:BF:7F:30:C0:D8:99:7A:C8:72:94:DE:DA:25:C7:4E:6C:3B:06:C4:EB:4E:C0
+</pre>
+</div>
+</div>
+
+</div>
+</div>
+
+</div>
+    
+
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="Fingerprinting-without-x509-Parsing">
+<a class="anchor" href="#Fingerprinting-without-x509-Parsing" aria-hidden="true"><span class="octicon octicon-link"></span></a>Fingerprinting without x509 Parsing<a class="anchor-link" href="#Fingerprinting-without-x509-Parsing"> </a>
+</h2>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>With the gold values computed, we can now use Go, instead. First, we'll load the certificate file and decode the PEM data.</p>
+
+</div>
+</div>
+</div>
+    
+    
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">b</span><span class="p">,</span> <span class="n">err</span> <span class="o">:=</span> <span class="n">ioutil</span><span class="o">.</span><span class="n">ReadFile</span><span class="p">(</span><span class="n">certFile</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">err</span> <span class="o">!=</span> <span class="n">nil</span> <span class="p">{</span>
+    <span class="n">panic</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="n">block</span><span class="p">,</span> <span class="n">_</span> <span class="o">:=</span> <span class="n">pem</span><span class="o">.</span><span class="n">Decode</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">block</span> <span class="o">==</span> <span class="n">nil</span> <span class="p">{</span>
+    <span class="n">panic</span><span class="p">(</span><span class="s2">"doesn't seem like a PEM block"</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+    
+
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Now, we'll compute the MD5, SHA1, and SHA256, hashes from the PEM block's <code>Bytes</code> field.</p>
+
+</div>
+</div>
+</div>
+    
+    
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="o">//</span> <span class="n">Normalize</span> <span class="n">the</span> <span class="nb">hash</span> <span class="n">so</span> <span class="n">it</span> <span class="ow">is</span> <span class="n">equal</span> <span class="n">to</span> <span class="n">the</span> <span class="n">openssl</span> <span class="n">output</span>
+<span class="n">func</span> <span class="n">normalizeHash</span><span class="p">(</span><span class="n">h</span> <span class="nb">hash</span><span class="o">.</span><span class="n">Hash</span><span class="p">,</span> <span class="n">b</span> <span class="p">[]</span><span class="n">byte</span><span class="p">)</span> <span class="n">string</span> <span class="p">{</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">err</span> <span class="o">:=</span> <span class="n">h</span><span class="o">.</span><span class="n">Write</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">err</span> <span class="o">!=</span> <span class="n">nil</span> <span class="p">{</span>
+        <span class="n">panic</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+    <span class="p">}</span>
+    <span class="n">digest</span> <span class="o">:=</span> <span class="n">h</span><span class="o">.</span><span class="n">Sum</span><span class="p">([]</span><span class="n">byte</span><span class="p">{})</span>
+                         
+    <span class="n">var</span> <span class="n">parts</span> <span class="p">[]</span><span class="n">string</span>
+    <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">octet</span> <span class="o">:=</span> <span class="nb">range</span> <span class="n">digest</span> <span class="p">{</span>
+        <span class="n">parts</span> <span class="o">=</span> <span class="n">append</span><span class="p">(</span><span class="n">parts</span><span class="p">,</span> <span class="n">fmt</span><span class="o">.</span><span class="n">Sprintf</span><span class="p">(</span><span class="s2">"</span><span class="si">%02X</span><span class="s2">"</span><span class="p">,</span> <span class="n">octet</span><span class="p">))</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">strings</span><span class="o">.</span><span class="n">Join</span><span class="p">(</span><span class="n">parts</span><span class="p">,</span> <span class="s2">":"</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">:=</span> <span class="n">fmt</span><span class="o">.</span><span class="n">Printf</span><span class="p">(</span><span class="s2">"MD5 Equal    = %v</span><span class="se">\n</span><span class="s2">SHA1 Equal   = %v</span><span class="se">\n</span><span class="s2">SHA256 Equal = %v</span><span class="se">\n</span><span class="s2">"</span><span class="p">,</span>
+    <span class="n">normalizeHash</span><span class="p">(</span><span class="n">md5</span><span class="o">.</span><span class="n">New</span><span class="p">(),</span> <span class="n">block</span><span class="o">.</span><span class="n">Bytes</span><span class="p">)</span> <span class="o">==</span> <span class="n">knownMD5</span><span class="p">,</span>
+    <span class="n">normalizeHash</span><span class="p">(</span><span class="n">sha1</span><span class="o">.</span><span class="n">New</span><span class="p">(),</span> <span class="n">block</span><span class="o">.</span><span class="n">Bytes</span><span class="p">)</span> <span class="o">==</span> <span class="n">knownSHA1</span><span class="p">,</span>
+    <span class="n">normalizeHash</span><span class="p">(</span><span class="n">sha256</span><span class="o">.</span><span class="n">New</span><span class="p">(),</span> <span class="n">block</span><span class="o">.</span><span class="n">Bytes</span><span class="p">)</span> <span class="o">==</span> <span class="n">knownSHA256</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="output_area">
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>MD5 Equal    = true
+SHA1 Equal   = true
+SHA256 Equal = true
+</pre>
+</div>
+</div>
+
+</div>
+</div>
+
+</div>
+    
+
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>They are equal. The go code and the OpenSSL commands compute the same thing.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="Fingerprinting-with-x509-Parsing">
+<a class="anchor" href="#Fingerprinting-with-x509-Parsing" aria-hidden="true"><span class="octicon octicon-link"></span></a>Fingerprinting with x509 Parsing<a class="anchor-link" href="#Fingerprinting-with-x509-Parsing"> </a>
+</h2>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>This part is a little contrived. But, often you have ready access to a <code>*x509.Certificate</code>. If you do, the <code>Raw</code> field contains the same data as the block bytes,</p>
+
+</div>
+</div>
+</div>
+    
+    
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">cert</span><span class="p">,</span> <span class="n">err</span> <span class="o">:=</span> <span class="n">x509</span><span class="o">.</span><span class="n">ParseCertificate</span><span class="p">(</span><span class="n">block</span><span class="o">.</span><span class="n">Bytes</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">block</span> <span class="o">==</span> <span class="n">nil</span> <span class="p">{</span>
+    <span class="n">panic</span><span class="p">(</span><span class="s2">"doesn't seem like a PEM block"</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">:=</span> <span class="n">fmt</span><span class="o">.</span><span class="n">Printf</span><span class="p">(</span><span class="s2">"MD5 Equal    = %v</span><span class="se">\n</span><span class="s2">SHA1 Equal   = %v</span><span class="se">\n</span><span class="s2">SHA256 Equal = %v</span><span class="se">\n</span><span class="s2">"</span><span class="p">,</span>
+    <span class="n">normalizeHash</span><span class="p">(</span><span class="n">md5</span><span class="o">.</span><span class="n">New</span><span class="p">(),</span> <span class="n">cert</span><span class="o">.</span><span class="n">Raw</span><span class="p">)</span> <span class="o">==</span> <span class="n">knownMD5</span><span class="p">,</span>
+    <span class="n">normalizeHash</span><span class="p">(</span><span class="n">sha1</span><span class="o">.</span><span class="n">New</span><span class="p">(),</span> <span class="n">cert</span><span class="o">.</span><span class="n">Raw</span><span class="p">)</span> <span class="o">==</span> <span class="n">knownSHA1</span><span class="p">,</span>
+    <span class="n">normalizeHash</span><span class="p">(</span><span class="n">sha256</span><span class="o">.</span><span class="n">New</span><span class="p">(),</span> <span class="n">cert</span><span class="o">.</span><span class="n">Raw</span><span class="p">)</span> <span class="o">==</span> <span class="n">knownSHA256</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="output_area">
+
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>MD5 Equal    = true
+SHA1 Equal   = true
+SHA256 Equal = true
+</pre>
+</div>
+</div>
+
+</div>
+</div>
+
+</div>
+    
+
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="Fingerprinting-from-a-Peer-Certificate">
+<a class="anchor" href="#Fingerprinting-from-a-Peer-Certificate" aria-hidden="true"><span class="octicon octicon-link"></span></a>Fingerprinting from a Peer Certificate<a class="anchor-link" href="#Fingerprinting-from-a-Peer-Certificate"> </a>
+</h2>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Finally, most code that uses <code>net</code> makes the peer certificates for an active connection available in some way. This example shows how to take the fingerprint of that certificate.</p>
+
+</div>
+</div>
+</div>
+    
+    
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">conn</span><span class="p">,</span> <span class="n">err</span> <span class="o">:=</span> <span class="n">tls</span><span class="o">.</span><span class="n">Dial</span><span class="p">(</span><span class="s2">"tcp"</span><span class="p">,</span> <span class="s2">"code.johnbnelson.com:443"</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">tls</span><span class="o">.</span><span class="n">Config</span><span class="p">{})</span>
+<span class="k">if</span> <span class="n">err</span> <span class="o">!=</span> <span class="n">nil</span> <span class="p">{</span>
+    <span class="n">panic</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="o">//</span> <span class="n">There</span> <span class="n">may</span> <span class="n">be</span> <span class="n">more</span> <span class="n">than</span> <span class="n">one</span> <span class="n">certificate</span><span class="o">.</span> <span class="n">This</span> <span class="n">example</span> <span class="n">may</span> <span class="k">break</span><span class="o">.</span>
+<span class="n">fetchedCert</span> <span class="o">:=</span> <span class="n">conn</span><span class="o">.</span><span class="n">ConnectionState</span><span class="p">()</span><span class="o">.</span><span class="n">PeerCertificates</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">conn</span><span class="o">.</span><span class="n">Close</span><span class="p">()</span>
+<span class="n">normalizeHash</span><span class="p">(</span><span class="n">sha256</span><span class="o">.</span><span class="n">New</span><span class="p">(),</span> <span class="n">fetchedCert</span><span class="o">.</span><span class="n">Raw</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+<div class="output_area">
+
+
+
+<div class="output_text output_subarea output_execute_result">
+<pre>D7:AB:C0:10:83:65:B2:59:CA:88:5B:94:43:EF:86:E5:49:B6:F0:57:38:4F:4F:33:BA:27:8C:DB:D6:D2:88:2B</pre>
+</div>
+
+</div>
+
+</div>
+</div>
+
+</div>
+    
+
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="Conclusion">
+<a class="anchor" href="#Conclusion" aria-hidden="true"><span class="octicon octicon-link"></span></a>Conclusion<a class="anchor-link" href="#Conclusion"> </a>
+</h2>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Go is batteries included from the perspective of public key cryptography. The most complicated part of this tutorial was string manipulation, which you don't have to actually do. The only <em>general</em> parting advice is, as always, don't use MD5 or SHA1 — they are insecure.</p>
+
+</div>
+</div>
+</div>
+</div>
+
+
+
+  </div><!-- from https://github.com/utterance/utterances -->
+<script src="https://utteranc.es/client.js"
+        repo="jbn/code.johnbnelson.com"
+        issue-term="title"
+        label="blogpost-comment"
+        theme="github-light"
+        crossorigin="anonymous"
+        async>
+</script><a class="u-url" href="/go/crypto/2020/08/12/certificate-fingerprinting-in-golang.html" hidden></a>
+</article>
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col">
+        <p class="feed-subscribe">
+          <a href="/feed.xml">
+            <svg class="svg-icon orange">
+              <use xlink:href="/assets/minima-social-icons.svg#rss"></use>
+            </svg><span>Subscribe</span>
+          </a>
+        </p>
+      </div>
+      <div class="footer-col">
+        <p>random code dispatches</p>
+      </div>
+    </div>
+
+    <div class="social-links"><ul class="social-media-list"><li><a rel="me" href="https://github.com/jbn" title="jbn"><svg class="svg-icon grey"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg></a></li><li><a rel="me" href="https://twitter.com/generativist" title="generativist"><svg class="svg-icon grey"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg></a></li></ul>
+</div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>
