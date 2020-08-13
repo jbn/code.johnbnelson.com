@@ -177,7 +177,8 @@ window.onload = wrap_img;
 <div class="cell border-box-sizing text_cell rendered">
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>This website serves content to your browser over an encrypted and authenticated tunnel. The <strong>S</strong> in <code>https</code> stands for secure via TLS (Transport Layer Security). To do so, it relies on a public key certificate associated with the domain name and issued by a certificate authority (CA) which acts as a trusted third party. I'm using github pages to host this page. Looking at the certificate in Brave's certificate viewer, you see github pages uses lets encrypt as the CA. (If you are looking at this tutorial after November 4th, 2020, you'll see different values.)</p>
+<p>This website serves content to your browser over an encrypted and authenticated tunnel. The <strong>S</strong> in <code>https</code> stands for secure via <a href="https://tools.ietf.org/html/rfc8446">TLS</a> (Transport Layer Security). To do so, it relies on a <a href="https://en.wikipedia.org/wiki/Public_key_certificate">public key certificate</a> associated with the domain name and issued by a <a href="https://en.wikipedia.org/wiki/Certificate_authority">certificate authority</a> (CA) which acts as a trusted third party. I'm using github pages as my host. Looking at the certificate in <a href="https://brave.com/">Brave</a>'s certificate viewer, you see github pages uses <a href="https://letsencrypt.org/">lets encrypt</a> as the CA (it's free).</p>
+<p>(If you are looking at this tutorial after November 4th, 2020, you'll see different values.)</p>
 
 </div>
 </div>
@@ -193,14 +194,14 @@ window.onload = wrap_img;
 <div class="cell border-box-sizing text_cell rendered">
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>Looking at the same viewer, you'll also notice that Brave shows two fingerprints: one for the (no longer secure) SHA-1 algorithm and the other for the SHA256, a 512 bit block hash in the SHA-2 family. If you aren't doing much work with public key cryptography, this may be the first time you noticed the fingerprint section. However, if you use computers in any sophisticated capacity, you've probably probably have seen hashes of public key artifacts in other contexts. In particular, you may have seen a message like this,</p>
+<p>Looking at the same viewer, you'll also notice that Brave shows two fingerprints: one for the (<a href="https://eprint.iacr.org/2020/014.pdf">no longer secure</a>) SHA-1 algorithm and the other for the SHA256, a 512 bit block secure hash in the <a href="https://en.wikipedia.org/wiki/SHA-2">SHA-2</a> family. If you aren't doing much work with public key cryptography, this may be the first time you noticed the fingerprint section. However, if you use computers in any sophisticated capacity, you've probably probably have seen hashes of public key artifacts in other contexts. In particular, you may have seen a message like this,</p>
 
 <pre><code>The authenticity of host '&lt;host&gt;' can't be established.
 ECDSA key fingerprint is SHA256:&lt;BASE64-encoded-SHA256-Fingerprint&gt;.
 Are you sure you want to continue connecting (yes/no)? yes
 Warning: Permanently added '&lt;host&gt;' (ECDSA) to the list of known hosts.</code></pre>
-<p>when connecting to a new SSH host using OpenSSH. This user experience is called TOFU: Trust on First Use. Since SSH has not seen this key before (or rather, it's fingerprint) it prompts you whether or not you would like to trust it. If you confirm with <code>y</code>, future sessions won't prompt you again, so long as the fingerprint of the key does not change.</p>
-<p>While <a href="https://smallstep.com/blog/use-ssh-certificates/">TOFU is a questionable practice</a> with respect to security (how often do you actually confirm the fingerprint with an administrator or in some database before confirmation?), this use of fingerprinting is common in applications using TLS. This notebook shows you how to use both OpenSSL and golang to extract equivalent fingerprints. It is fully self-contained — if you have a Golang kernel for Jupyter, you can run it.</p>
+<p>when connecting to a new SSH host using <a href="https://www.openssh.com/">OpenSSH</a>. This user experience is called <a href="https://en.wikipedia.org/wiki/Trust_on_first_use">TOFU</a>: Trust on First Use. Since OpenSSH has not seen this key before (or rather, it's fingerprint) it asks whether or not you would like to trust it. If you confirm with <code>y</code>, future sessions won't prompt you again, so long as the fingerprint of the key does not change.</p>
+<p>While <a href="https://smallstep.com/blog/use-ssh-certificates/">TOFU is a questionable practice</a> with respect to security (how often do you actually confirm the fingerprint with an administrator or in some database before confirmation?), this use of fingerprinting is common in applications using TLS. This notebook shows you how to use both <a href="https://www.openssl.org/">OpenSSL</a> and golang to extract equivalent fingerprints. It is fully self-contained — if you have a Golang kernel (I use <a href="https://github.com/gopherdata/gophernotes">gophernotes</a>) for <a href="https://jupyter.org/">Jupyter</a>, you can run it.</p>
 
 </div>
 </div>
@@ -255,7 +256,7 @@ Warning: Permanently added '&lt;host&gt;' (ECDSA) to the list of known hosts.</c
 <div class="cell border-box-sizing text_cell rendered">
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>Next, we'll write a fixed, minimal ASCII/PEM-encoded certificate so that this tutorial won't change over time.</p>
+<p>Next, we'll write a fixed, minimal ASCII/<a href="https://en.wikipedia.org/wiki/Privacy-Enhanced_Mail">PEM</a>-encoded certificate so that this tutorial won't change over time.</p>
 
 </div>
 </div>
@@ -585,7 +586,7 @@ SHA256 Equal = true
 <div class="cell border-box-sizing text_cell rendered">
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>Go is batteries included from the perspective of public key cryptography. The most complicated part of this tutorial was string manipulation, which you don't have to actually do. The only <em>general</em> parting advice is, as always, don't use MD5 or SHA1 — they are insecure.</p>
+<p>Go is batteries included from the perspective of public key cryptography. The most complicated part of this tutorial was string manipulation, which you don't have to actually do. The only <em>general</em> parting advice is, as always, don't use MD5 or SHA1 — they are wildly insecure and insecure, respectively.</p>
 
 </div>
 </div>
