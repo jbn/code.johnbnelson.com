@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="twitter:card" content="summary" /><!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>Length-Prefixed Protobuf Messages | jbn codes</title>
+<meta name="generator" content="Jekyll v4.0.0" />
+<meta property="og:title" content="Length-Prefixed Protobuf Messages" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="It’s already built-in to gogo/protobuf" />
+<meta property="og:description" content="It’s already built-in to gogo/protobuf" />
+<link rel="canonical" href="https://code.johnbnelson.com/go/protobuf/2020/08/20/protobuf-length-prefixing.html" />
+<meta property="og:url" content="https://code.johnbnelson.com/go/protobuf/2020/08/20/protobuf-length-prefixing.html" />
+<meta property="og:site_name" content="jbn codes" />
+<meta property="og:image" content="https://code.johnbnelson.com/images/copied_from_nb/images/cert_viewer.png" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2020-08-20T00:00:00-05:00" />
+<script type="application/ld+json">
+{"description":"It’s already built-in to gogo/protobuf","mainEntityOfPage":{"@type":"WebPage","@id":"https://code.johnbnelson.com/go/protobuf/2020/08/20/protobuf-length-prefixing.html"},"@type":"BlogPosting","url":"https://code.johnbnelson.com/go/protobuf/2020/08/20/protobuf-length-prefixing.html","headline":"Length-Prefixed Protobuf Messages","dateModified":"2020-08-20T00:00:00-05:00","datePublished":"2020-08-20T00:00:00-05:00","image":"https://code.johnbnelson.com/images/copied_from_nb/images/cert_viewer.png","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/css/style.css"><link type="application/atom+xml" rel="alternate" href="https://code.johnbnelson.com/feed.xml" title="jbn codes" /><link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico"><!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>Length-Prefixed Protobuf Messages | jbn codes</title>
+<meta name="generator" content="Jekyll v4.0.0" />
+<meta property="og:title" content="Length-Prefixed Protobuf Messages" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="It’s already built-in to gogo/protobuf" />
+<meta property="og:description" content="It’s already built-in to gogo/protobuf" />
+<link rel="canonical" href="https://code.johnbnelson.com/go/protobuf/2020/08/20/protobuf-length-prefixing.html" />
+<meta property="og:url" content="https://code.johnbnelson.com/go/protobuf/2020/08/20/protobuf-length-prefixing.html" />
+<meta property="og:site_name" content="jbn codes" />
+<meta property="og:image" content="https://code.johnbnelson.com/images/copied_from_nb/images/cert_viewer.png" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2020-08-20T00:00:00-05:00" />
+<script type="application/ld+json">
+{"description":"It’s already built-in to gogo/protobuf","mainEntityOfPage":{"@type":"WebPage","@id":"https://code.johnbnelson.com/go/protobuf/2020/08/20/protobuf-length-prefixing.html"},"@type":"BlogPosting","url":"https://code.johnbnelson.com/go/protobuf/2020/08/20/protobuf-length-prefixing.html","headline":"Length-Prefixed Protobuf Messages","dateModified":"2020-08-20T00:00:00-05:00","datePublished":"2020-08-20T00:00:00-05:00","image":"https://code.johnbnelson.com/images/copied_from_nb/images/cert_viewer.png","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+
+<link href="https://unpkg.com/@primer/css/dist/primer.css" rel="stylesheet" />
+<link rel="stylesheet" href="//use.fontawesome.com/releases/v5.0.7/css/all.css"><link type="application/atom+xml" rel="alternate" href="https://code.johnbnelson.com/feed.xml" title="jbn codes" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.11.1/dist/katex.min.css" integrity="sha384-zB1R0rpPzHqg7Kpt0Aljp8JPLqbXI3bhnPWROx27a9N0Ll6ZP/+DiW/UqRcLbRjq" crossorigin="anonymous">
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML"> </script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.11.1/dist/katex.min.js" integrity="sha384-y23I5Q6l+B6vatafAwxRu/0oK/79VlbSz7Q9aiSZUvyWYIYsd+qj+o24G5ZU2zJz" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.11.1/dist/contrib/auto-render.min.js" integrity="sha384-kWPLUVMOks5AQFrykwIup5lo0m3iMkkHrD0uJ4H5cjeGihAutqP0yW0J6dpFiVkI" crossorigin="anonymous"></script>
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        renderMathInElement( document.body, {
+        delimiters: [
+            {left: "$$", right: "$$", display: true},
+            {left: "[%", right: "%]", display: true},
+            {left: "$", right: "$", display: false}
+        ]}
+        );
+    });
+    </script>
+
+
+<script>
+function wrap_img(fn) {
+    if (document.attachEvent ? document.readyState === "complete" : document.readyState !== "loading") {
+        var elements = document.querySelectorAll(".post img");
+        Array.prototype.forEach.call(elements, function(el, i) {
+            if (el.getAttribute("title") && (el.className != "emoji")) {
+                const caption = document.createElement('figcaption');
+                var node = document.createTextNode(el.getAttribute("title"));
+                caption.appendChild(node);
+                const wrapper = document.createElement('figure');
+                wrapper.className = 'image';
+                el.parentNode.insertBefore(wrapper, el);
+                el.parentNode.removeChild(el);
+                wrapper.appendChild(el);
+                wrapper.appendChild(caption);
+            }
+        });
+    } else { document.addEventListener('DOMContentLoaded', fn); }
+}
+window.onload = wrap_img;
+</script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function(){
+    // add link icon to anchor tags
+    var elem = document.querySelectorAll(".anchor-link")
+    elem.forEach(e => (e.innerHTML = '<i class="fas fa-link fa-xs"></i>'));
+    });
+</script>
+</head>
+<body><header class="site-header">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">jbn codes</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/about/">About Me</a><a class="page-link" href="/search/">Search</a><a class="page-link" href="/categories/">Tags</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Length-Prefixed Protobuf Messages</h1><p class="page-description">It's already built-in to gogo/protobuf</p><p class="post-meta post-meta-title"><time class="dt-published" datetime="2020-08-20T00:00:00-05:00" itemprop="datePublished">
+        Aug 20, 2020
+      </time>
+       • <span class="read-time" title="Estimated read time">
+    
+    
+      1 min read
+    
+</span></p>
+
+    
+      <p class="category-tags"><i class="fas fa-tags category-tags-icon"></i></i> 
+      
+        <a class="category-tags-link" href="/categories/#go">go</a>
+        &nbsp;
+      
+        <a class="category-tags-link" href="/categories/#protobuf">protobuf</a>
+        
+      
+      </p>
+    
+
+    
+      
+        <div class="pb-5 d-flex flex-wrap flex-justify-end">
+          <div class="px-2">
+
+    <a href="https://github.com/jbn/code.johnbnelson.com/tree/master/_notebooks/2020-08-20-protobuf-length-prefixing.ipynb" role="button" target="_blank">
+<img class="notebook-badge-image" src="/assets/badges/github.svg" alt="View On GitHub">
+    </a>
+</div>
+
+          <div class="px-2">
+    <a href="https://mybinder.org/v2/gh/jbn/code.johnbnelson.com/master?filepath=_notebooks%2F2020-08-20-protobuf-length-prefixing.ipynb" target="_blank">
+        <img class="notebook-badge-image" src="/assets/badges/binder.svg" alt="Open In Binder"/>
+    </a>
+</div>
+
+          <div class="px-2">
+    <a href="https://colab.research.google.com/github/jbn/code.johnbnelson.com/blob/master/_notebooks/2020-08-20-protobuf-length-prefixing.ipynb" target="_blank">
+        <img class="notebook-badge-image" src="/assets/badges/colab.svg" alt="Open In Colab"/>
+    </a>
+</div>
+        </div>
+      </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <ul class="section-nav">
+</ul><!--
+#################################################
+### THIS FILE WAS AUTOGENERATED! DO NOT EDIT! ###
+#################################################
+# file to edit: _notebooks/2020-08-20-protobuf-length-prefixing.ipynb
+-->
+
+<div class="container" id="notebook-container">
+        
+    
+    
+<div class="cell border-box-sizing code_cell rendered">
+
+</div>
+    
+
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><a href="https://developers.google.com/protocol-buffers">Protocol buffers</a> are popular, 
+especially indirectly via <a href="https://grpc.io/">gRPC</a>. If you are using <code>golang</code>,
+you may use the official <code>golang/protobuf</code>
+package. But, there are other implementations. In particular, 
+<code>gogo/protobuf</code> does protocol buffers in 
+go <em>without</em> reflection, and with smarter allocations to reduce gc pressure. 
+The <a href="https://github.com/alecthomas/go_serialization_benchmarks#results">result is better performance</a>.</p>
+<p>The <a href="https://github.com/gogo/protobuf">README</a> does a good job of getting you started. However, 
+if you are using <code>protobuf</code> without gRPC, you'll quickly find yourself in need of a serialization
+format for delimiting messages. The easiest way to do this is with length-prefixing. What I failed
+to realize for far too long is that <code>gogo/protobuf</code> tools for this already.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Looking at <code>github.com/gogo/protobuf/io</code>, there is</p>
+<div class="highlight"><pre><span></span><span class="kd">func</span> <span class="nx">NewDelimitedReader</span><span class="p">(</span><span class="nx">r</span> <span class="nx">io</span><span class="p">.</span><span class="nx">Reader</span><span class="p">,</span> <span class="nx">maxSize</span> <span class="kt">int</span><span class="p">)</span> <span class="nx">ReadCloser</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">closer</span> <span class="nx">io</span><span class="p">.</span><span class="nx">Closer</span>
+    <span class="k">if</span> <span class="nx">c</span><span class="p">,</span> <span class="nx">ok</span> <span class="o">:=</span> <span class="nx">r</span><span class="p">.(</span><span class="nx">io</span><span class="p">.</span><span class="nx">Closer</span><span class="p">);</span> <span class="nx">ok</span> <span class="p">{</span>
+        <span class="nx">closer</span> <span class="p">=</span> <span class="nx">c</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="o">&amp;</span><span class="nx">varintReader</span><span class="p">{</span><span class="nx">bufio</span><span class="p">.</span><span class="nx">NewReader</span><span class="p">(</span><span class="nx">r</span><span class="p">),</span> <span class="kc">nil</span><span class="p">,</span> <span class="nx">maxSize</span><span class="p">,</span> <span class="nx">closer</span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+<p>and,</p>
+<div class="highlight"><pre><span></span><span class="kd">func</span> <span class="nx">NewDelimitedWriter</span><span class="p">(</span><span class="nx">w</span> <span class="nx">io</span><span class="p">.</span><span class="nx">Writer</span><span class="p">)</span> <span class="nx">WriteCloser</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="o">&amp;</span><span class="nx">varintWriter</span><span class="p">{</span><span class="nx">w</span><span class="p">,</span> <span class="nb">make</span><span class="p">([]</span><span class="kt">byte</span><span class="p">,</span> <span class="nx">binary</span><span class="p">.</span><span class="nx">MaxVarintLen64</span><span class="p">),</span> <span class="kc">nil</span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+<p>The reader has a <code>ReadMsg</code> function,</p>
+<div class="highlight"><pre><span></span><span class="kd">func</span> <span class="p">(</span><span class="nx">this</span> <span class="o">*</span><span class="nx">varintReader</span><span class="p">)</span> <span class="nx">ReadMsg</span><span class="p">(</span><span class="nx">msg</span> <span class="nx">proto</span><span class="p">.</span><span class="nx">Message</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+</pre></div>
+<p>and the writer has a <code>WriteMsg</code> function,</p>
+<div class="highlight"><pre><span></span><span class="kd">func</span> <span class="p">(</span><span class="nx">this</span> <span class="o">*</span><span class="nx">varintWriter</span><span class="p">)</span> <span class="nx">WriteMsg</span><span class="p">(</span><span class="nx">msg</span> <span class="nx">proto</span><span class="p">.</span><span class="nx">Message</span><span class="p">)</span> <span class="p">(</span><span class="nx">err</span> <span class="kt">error</span><span class="p">)</span>
+</pre></div>
+<p>Both these methods use <code>encoding/binary</code>'s <code>Uvarint</code>, allowing for very large messages — no need to roll your own.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Depending on your protocol/serialization needs, it may be useful to use a <a href="https://en.wikipedia.org/wiki/Type-length-value">TLV encoding</a>. Given <code>DelimitedReader</code> and <code>DelimitedWriter</code>,
+the easiest way to do this is to write the type as a byte before each length-delimited message
+is sent. I generally define mine in the <a href="https://developers.google.com/protocol-buffers/docs/proto3#enum">protocol file as an enum</a>, since it's self documenting.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Anyways, nothing in this post is new or interesting. It's just that I didn't realize it was already built 
+into a dependency I was using anyway, so hopefully I'll save you a stack-overflow trip.</p>
+
+</div>
+</div>
+</div>
+</div>
+
+
+
+  </div><!-- from https://github.com/utterance/utterances -->
+<script src="https://utteranc.es/client.js"
+        repo="jbn/code.johnbnelson.com"
+        issue-term="title"
+        label="blogpost-comment"
+        theme="github-light"
+        crossorigin="anonymous"
+        async>
+</script><a class="u-url" href="/go/protobuf/2020/08/20/protobuf-length-prefixing.html" hidden></a>
+</article>
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col">
+        <p class="feed-subscribe">
+          <a href="/feed.xml">
+            <svg class="svg-icon orange">
+              <use xlink:href="/assets/minima-social-icons.svg#rss"></use>
+            </svg><span>Subscribe</span>
+          </a>
+        </p>
+      </div>
+      <div class="footer-col">
+        <p>random code dispatches</p>
+      </div>
+    </div>
+
+    <div class="social-links"><ul class="social-media-list"><li><a rel="me" href="https://github.com/jbn" title="jbn"><svg class="svg-icon grey"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg></a></li><li><a rel="me" href="https://twitter.com/generativist" title="generativist"><svg class="svg-icon grey"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg></a></li></ul>
+</div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>
